@@ -2,19 +2,19 @@ local M = {}
 
 local registry = {
   "tokyonight-storm", "tokyonight-night",
-  "catppuccin-mocha", "catppuccin-latte",
-  "gruvbox-dark", "gruvbox-light",
+  "catppuccin-mocha",
+  "gruvbox-dark",
   "nord",
-  "rose-pine", "rose-pine-dawn",
+  "rose-pine",
   "kanagawa-wave",
   "dracula",
   "onedark",
-  "solarized-dark", "solarized-light",
+  "solarized-dark",
   "nightfox",
   "everforest",
   "material-darker",
   "oxocarbon",
-  "github-dark", "github-light",
+  "github-dark",
 }
 
 -- Map id to module name (replace - with _)
@@ -23,7 +23,6 @@ local function id_to_module(id)
 end
 
 local cache = {}
-
 function M.get(id)
   if cache[id] then return cache[id] end
   local mod_name = id_to_module(id)

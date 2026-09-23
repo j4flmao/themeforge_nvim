@@ -85,6 +85,10 @@ function M.apply(opts)
   end
 end
 
+function M.doctor()
+  return require("themeforge.doctor").run()
+end
+
 function M.save(filepath)
   if filepath then
     local writer = require("themeforge.writer")

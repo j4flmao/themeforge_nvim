@@ -40,6 +40,9 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
     local name = args[2]
     require("themeforge").save_blend(name)
 
+  elseif subcmd == "doctor" then
+    require("themeforge").doctor()
+
   elseif subcmd == "list" then
     local themes = require("themeforge.themes")
     local list = themes.list()
@@ -60,7 +63,7 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
 end, {
   nargs = "*",
   complete = function(arglead, cmdline, cursorpos)
-    local subcmds = { "open", "close", "apply", "save", "reset", "save-blend", "list", "status" }
+    local subcmds = { "open", "close", "apply", "save", "reset", "save-blend", "doctor", "list", "status" }
     local parts = vim.split(cmdline, "%s+")
     if #parts <= 2 then
       return vim.tbl_filter(function(s)

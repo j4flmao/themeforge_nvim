@@ -1,14 +1,17 @@
 # ThemeForge.nvim
 
-Instant theme switching for Neovim — browse 20+ bundled themes, customize colors, apply instantly.
+A visual theme workbench for Neovim — discover, tune, check readability, and save 15 bundled dark themes.
 
 ---
 
 ## Features
 
-- 20+ bundled themes (no internet required)
+- 15 bundled dark themes (no internet required)
 - Live preview with color blending sliders
 - UI customization (transparency, bold, italic, cursor styling)
+- Readability feedback for text and comments while tuning a palette
+- Generate a custom dark theme from an image
+- Diagnose contrast and plugin highlight coverage
 - Save/load theme configurations
 - Compatible with popular plugins (nvim-tree, telescope, lualine, etc.)
 
@@ -17,7 +20,7 @@ Instant theme switching for Neovim — browse 20+ bundled themes, customize colo
 ## Requirements
 
 - Neovim >= 0.9.0
-- Pure Lua — no external dependencies
+- Pure Lua core with no external image-processing dependency
 
 ---
 
@@ -101,6 +104,8 @@ require("themeforge").setup({
 | `:ThemeForge reset` | Reset all overrides |
 | `:ThemeForge list` | List bundled themes |
 | `:ThemeForge status` | Show active theme |
+| `:ThemeForge save-blend [name]` | Save the current palette blend |
+| `:ThemeForge doctor` | Check contrast and integrations |
 
 ---
 
@@ -125,9 +130,11 @@ Inside the ThemeForge panel:
 | `q` / `Esc` | Close panel |
 | `?` | Show help |
 
+Theme changes are previewed live. Press `a` or Apply Theme to commit them; closing the panel without applying restores the previous theme.
+
 ---
 
-## Bundled Themes
+## Bundled Themes (15)
 
 | ID | Name |
 |----|------|
@@ -168,7 +175,9 @@ tf.apply({ theme = "github-dark", ui = { bold_cursor = true } })
 -- Save/load
 tf.save("~/.config/nvim/themes.lua")
 tf.reset()
+tf.doctor()
 ```
+
 
 ---
 

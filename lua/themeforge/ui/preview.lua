@@ -99,11 +99,11 @@ local function resolve_role_color(role, theme_groups, colors, mix)
       -- gdef.fg is a color key like "purple", "pink", "iris" etc.
       local hex = colors[gdef.fg]
       if hex and palette_mod.is_valid_hex(hex) then
-        return palette_mod.apply_mix(hex, mix)
+        return palette_mod.apply_mix(hex, mix, colors.bg)
       end
       -- or it might already be a hex value
       if palette_mod.is_valid_hex(gdef.fg) then
-        return palette_mod.apply_mix(gdef.fg, mix)
+        return palette_mod.apply_mix(gdef.fg, mix, colors.bg)
       end
     end
   end
@@ -123,7 +123,7 @@ local function get_role_colors()
   local colors = {}
   for k, v in pairs(theme.colors) do
     if palette_mod.is_valid_hex(v) then
-      colors[k] = palette_mod.apply_mix(v, mix)
+      colors[k] = palette_mod.apply_mix(v, mix, theme.colors.bg)
     else
       colors[k] = v
     end

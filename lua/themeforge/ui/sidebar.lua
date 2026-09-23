@@ -44,7 +44,7 @@ function M.render()
   table.insert(lines, " ───────────────────")
   table.insert(lines, "")
 
-  -- Theme list (dark only)
+  -- ThemeForge currently ships a focused dark-only catalog.
   local dark_themes = {}
   for _, t in ipairs(filtered_list) do
     if t.variant == "dark" then

@@ -19,6 +19,24 @@ local default_state = {
 
 M.current = vim.deepcopy(default_state)
 M.config = {} -- populated by setup()
+M.preview_snapshot = nil
+
+function M.begin_preview()
+  if not M.preview_snapshot then
+    M.preview_snapshot = vim.deepcopy(M.current)
+  end
+end
+
+function M.commit_preview()
+  M.preview_snapshot = nil
+end
+
+function M.cancel_preview()
+  if not M.preview_snapshot then return false end
+  M.current = M.preview_snapshot
+  M.preview_snapshot = nil
+  return true
+end
 
 function M.set_theme(theme_id)
   M.current.active_theme = theme_id
@@ -51,14 +69,18 @@ function M.save_cache()
   local path = M.get_cache_path()
   local dir = vim.fn.fnamemodify(path, ":h")
   if vim.fn.isdirectory(dir) == 0 then
-    vim.fn.mkdir(dir, "p")
+    if vim.fn.mkdir(dir, "p") == 0 and vim.fn.isdirectory(dir) == 0 then
+      return false
+    end
   end
   local data = vim.fn.json_encode(M.current)
   local f = io.open(path, "w")
   if f then
     f:write(data)
     f:close()
+    return true
   end
+  return false
 end
 
 function M.load_cache()

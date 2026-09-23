@@ -117,8 +117,11 @@ function M.contrast_ratio(hex_a, hex_b)
 end
 
 -- Apply palette mix blending to a color
-function M.apply_mix(hex, mix)
+-- Apply palette adjustments. `background` is used by opacity to fade a color
+-- toward the theme background instead of silently doing nothing.
+function M.apply_mix(hex, mix, background)
   if not hex or not M.is_valid_hex(hex) then return hex end
+  mix = mix or {}
   local result = hex
 
   if mix.purple and mix.purple > 0 then
@@ -158,6 +161,10 @@ function M.apply_mix(hex, mix)
   if mix.brightness and mix.brightness ~= 50 then
     local delta = (mix.brightness - 50) * 1.2
     result = M.adjust_lightness(result, delta)
+  end
+
+  if background and M.is_valid_hex(background) and mix.opacity and mix.opacity < 100 then
+    result = M.mix(background, result, math.max(0, math.min(100, mix.opacity)) / 100)
   end
 
   return result

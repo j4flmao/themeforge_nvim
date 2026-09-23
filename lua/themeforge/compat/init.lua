@@ -23,6 +23,7 @@ end
 
 function M.apply(colors, mode)
   mode = mode or "auto"
+  local applied = {}
 
   for _, mod in ipairs(modules) do
     local should_load = false
@@ -44,11 +45,16 @@ function M.apply(colors, mode)
       if ok and compat_mod.groups then
         local groups = compat_mod.groups(colors)
         for group, hl in pairs(groups) do
-          pcall(vim.api.nvim_set_hl, 0, group, hl)
+          local applied_ok = pcall(vim.api.nvim_set_hl, 0, group, hl)
+          if applied_ok then
+            applied[group] = true
+          end
         end
       end
     end
   end
+
+  return applied
 end
 
 return M

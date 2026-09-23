@@ -108,13 +108,33 @@ function M.render()
   if theme then
     for _, tk in ipairs(token_keys) do
       local color = theme.colors[tk.key] or "#000000"
-      color = palette_mod.apply_mix(color, state.current.palette_mix or {})
+      color = palette_mod.apply_mix(color, state.current.palette_mix or {}, theme.colors.bg)
       local display = string.format(" ■ %-14s %s", tk.label, color)
       table.insert(lines, display)
       -- Display only, no action
     end
   else
     table.insert(lines, " (no theme selected)")
+  end
+
+  -- A compact, actionable readability signal makes the palette editor useful
+  -- beyond visual preference alone.
+  if theme then
+    local bg = palette_mod.apply_mix(theme.colors.bg, state.current.palette_mix or {}, theme.colors.bg)
+    local fg = palette_mod.apply_mix(theme.colors.fg, state.current.palette_mix or {}, theme.colors.bg)
+    local comment = palette_mod.apply_mix(theme.colors.comment, state.current.palette_mix or {}, theme.colors.bg)
+    local fg_ratio = palette_mod.contrast_ratio(fg, bg)
+    local comment_ratio = palette_mod.contrast_ratio(comment, bg)
+    local function grade(ratio)
+      if ratio >= 7 then return "AAA" end
+      if ratio >= 4.5 then return "AA" end
+      if ratio >= 3 then return "large text" end
+      return "low"
+    end
+    table.insert(lines, "")
+    table.insert(lines, " READABILITY")
+    table.insert(lines, string.format("  Text     %4.1fx  %s", fg_ratio, grade(fg_ratio)))
+    table.insert(lines, string.format("  Comment  %4.1fx  %s", comment_ratio, grade(comment_ratio)))
   end
 
   table.insert(lines, "")
@@ -234,6 +254,7 @@ function M.handle_action_at_cursor()
     if action.action == "apply" then
       local apply = require("themeforge.apply")
       apply.apply()
+      state.commit_preview()
       vim.notify("[ThemeForge] ✓ Theme applied!", vim.log.levels.INFO)
     elseif action.action == "save" then
       local filepicker = require("themeforge.ui.filepicker")

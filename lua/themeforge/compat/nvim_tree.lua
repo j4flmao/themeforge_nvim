@@ -14,6 +14,7 @@ function M.groups(c)
     NvimTreeIndentMarker = { fg = c.bg3 },
     NvimTreeGitDirty     = { fg = c.orange },
     NvimTreeGitNew       = { fg = c.green, bold = true },
+    NvimTreeGitNewIcon   = { fg = c.green, bold = true },
     NvimTreeGitDeleted   = { fg = c.red },
     NvimTreeGitRenamed   = { fg = c.purple },
     NvimTreeGitStaged    = { fg = c.green },

@@ -4,6 +4,14 @@ local state = require("themeforge.state")
 local resolver = require("themeforge.resolver")
 local themes = require("themeforge.themes")
 local compat = require("themeforge.compat")
+local managed_groups = {}
+
+local function clear_managed_groups()
+  for group, _ in pairs(managed_groups) do
+    pcall(vim.api.nvim_set_hl, 0, group, {})
+  end
+  managed_groups = {}
+end
 
 function M.apply(opts)
   local theme_id, overrides, ui_options, mix
@@ -38,19 +46,24 @@ function M.apply(opts)
 
   local highlights, colors = resolver.resolve(theme, overrides, ui_options, mix)
 
-  -- Clear existing highlights
-  vim.cmd("highlight clear")
+  -- Clear only highlights owned by ThemeForge. A global highlight clear also
+  -- destroys unrelated user and plugin customization.
+  clear_managed_groups()
 
   -- Apply all highlight groups
   for group, hl in pairs(highlights) do
     local ok, err = pcall(vim.api.nvim_set_hl, 0, group, hl)
     if not ok then
       -- silently skip invalid groups
+    else
+      managed_groups[group] = true
     end
   end
 
   -- Apply compat modules
-  compat.apply(colors, state.config.compat or "auto")
+  for group, _ in pairs(compat.apply(colors, state.config.compat or "auto")) do
+    managed_groups[group] = true
+  end
 
   -- Update state
   state.current.active_theme = theme_id
@@ -74,13 +87,17 @@ function M.preview(theme_id, overrides, ui_options, mix)
   local theme = themes.get(theme_id)
   if not theme then return false end
 
-  local highlights = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {})
+  local highlights, colors = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {})
 
+  clear_managed_groups()
   for group, hl in pairs(highlights) do
     pcall(vim.api.nvim_set_hl, 0, group, hl)
+    managed_groups[group] = true
   end
 
-  compat.apply(theme.colors, state.config.compat or "auto")
+  for group, _ in pairs(compat.apply(colors, state.config.compat or "auto")) do
+    managed_groups[group] = true
+  end
 
   return true
 end

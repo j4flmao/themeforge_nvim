@@ -54,6 +54,7 @@ end
 function M.open()
   if M.is_open then return end
 
+  state.begin_preview()
   local layout = calc_layout()
 
   -- Create the main background float
@@ -71,7 +72,7 @@ function M.open()
     title_pos = "center",
   })
   vim.api.nvim_win_set_option(main_win, "winblend", 0)
-  vim.api.nvim_win_set_option(main_win, "winhighlight", "Normal:NormalFloat,FloatBorder:FloatBorder")
+  vim.api.nvim_win_set_option(main_win, "winhighlight", "Normal:ThemeForgePanelNormal,NormalNC:ThemeForgePanelNormal,NormalFloat:ThemeForgePanelNormal,FloatBorder:ThemeForgePanelBorder")
 
   M.wins.main = main_win
   M.bufs.main = main_buf
@@ -89,7 +90,7 @@ function M.open()
     col = 1,
     zindex = 51,
   })
-  vim.api.nvim_win_set_option(sidebar_win, "winhighlight", "Normal:NormalFloat")
+  vim.api.nvim_win_set_option(sidebar_win, "winhighlight", "Normal:ThemeForgePanelNormal,NormalNC:ThemeForgePanelNormal,NormalFloat:ThemeForgePanelNormal")
 
   M.wins.sidebar = sidebar_win
   M.bufs.sidebar = sidebar_buf
@@ -107,7 +108,7 @@ function M.open()
     col = layout.sidebar_w + 2,
     zindex = 51,
   })
-  vim.api.nvim_win_set_option(preview_win, "winhighlight", "Normal:NormalFloat,FloatBorder:FloatBorder")
+  vim.api.nvim_win_set_option(preview_win, "winhighlight", "Normal:ThemeForgePanelNormal,NormalNC:ThemeForgePanelNormal,NormalFloat:ThemeForgePanelNormal,FloatBorder:ThemeForgePanelBorder")
 
   M.wins.preview = preview_win
   M.bufs.preview = preview_buf
@@ -125,7 +126,7 @@ function M.open()
     col = layout.sidebar_w + layout.preview_w + 4,
     zindex = 51,
   })
-  vim.api.nvim_win_set_option(controls_win, "winhighlight", "Normal:NormalFloat")
+  vim.api.nvim_win_set_option(controls_win, "winhighlight", "Normal:ThemeForgePanelNormal,NormalNC:ThemeForgePanelNormal,NormalFloat:ThemeForgePanelNormal")
 
   M.wins.controls = controls_win
   M.bufs.controls = controls_buf
@@ -186,6 +187,11 @@ end
 function M.close()
   if not M.is_open then return end
 
+  if state.cancel_preview() and state.current.active_theme then
+    local apply = require("themeforge.apply")
+    apply.apply()
+  end
+
   for name, win in pairs(M.wins) do
     if vim.api.nvim_win_is_valid(win) then
       pcall(vim.api.nvim_win_close, win, true)
@@ -209,6 +215,7 @@ function M.setup_keymaps()
     map(buf, "a", function()
       local apply = require("themeforge.apply")
       apply.apply()
+      state.commit_preview()
       vim.notify("[ThemeForge] Theme applied!", vim.log.levels.INFO)
     end)
     map(buf, "s", function()
