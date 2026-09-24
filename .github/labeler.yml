@@ -1,0 +1,12 @@
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: ['README.md', 'doc/**', 'CONTRIBUTING.md']
+ui/ux:
+  - changed-files:
+      - any-glob-to-any-file: ['lua/themeforge/ui/**', 'lua/themeforge/resolver.lua']
+themes:
+  - changed-files:
+      - any-glob-to-any-file: ['lua/themeforge/themes/**', 'colors/**']
+ci:
+  - changed-files:
+      - any-glob-to-any-file: ['.github/**']

@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a reproducible problem in ThemeForge.nvim.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve ThemeForge.nvim. Please search existing issues first.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Tell us what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      placeholder: |
+        1. Open ...
+        2. Run ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: neovim
+    attributes:
+      label: Neovim version
+      placeholder: nvim --version
+    validations:
+      required: true
+  - type: input
+    id: themeforge
+    attributes:
+      label: ThemeForge version or commit
+  - type: textarea
+    id: config
+    attributes:
+      label: Minimal configuration and logs
+      description: Remove secrets before posting.
+      render: lua
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/j4flmao/themeforge_nvim/discussions
+    about: Ask questions and share theme ideas here.

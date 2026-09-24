@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Neovim smoke tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Neovim
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y neovim lua5.4
+
+      - name: Validate plugin runtime
+        shell: bash
+        run: |
+          nvim --version | head -n 1
+          nvim --headless -u NONE \
+            --cmd 'set rtp^=.' \
+            -c 'runtime plugin/themeforge.lua' \
+            -c 'lua assert(vim.fn.exists(":ThemeForge") == 2)' \
+            -c 'lua local themes = require("themeforge.themes"); assert(#themes.ids() == 15)' \
+            -c 'qa!'
+
+      - name: Check Lua syntax
+        shell: bash
+        run: |
+          find lua plugin -name '*.lua' -print0 | xargs -0 -n1 luac5.4 -p
