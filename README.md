@@ -68,9 +68,6 @@
 
 ## Demo
 
-<p align="center">
-  <a href="assets/demo.mp4"><b>Video demo</b></a>
-</p>
 https://github.com/user-attachments/assets/4b297170-ea7b-45ef-8cc7-998fbc2cd829
 
 The video walks through every feature: help, live preview, favorites, search,
