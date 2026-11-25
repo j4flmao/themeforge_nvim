@@ -19,9 +19,6 @@
   </a>
 </p>
 
-<p align="center">
-  <a href="assets/demo.mp4"><b>▶ Watch the demo video</b></a>
-</p>
 
 ---
 
@@ -72,7 +69,7 @@
 ## Demo
 
 <p align="center">
-  <a href="assets/demo.mp4"><b>▶ assets/demo.mp4</b></a>
+  <a href="https://github.com/user-attachments/assets/4b297170-ea7b-45ef-8cc7-998fbc2cd829"><b>Video demo</b></a>
 </p>
 
 The video walks through every feature: help, live preview, favorites, search,
