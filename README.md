@@ -14,7 +14,7 @@
   <a href="https://github.com/j4flmao/themeforge_nvim/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/j4flmao/themeforge_nvim?style=flat" alt="License">
   </a>
-  <a href="https://buymeacoffee.com/j4flmao">
+  <a href="https://buymeacoffee.com/j4flmaon">
     <img src="https://img.shields.io/badge/Buy_me_a_coffee-FFDD00?style=flat&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee">
   </a>
 </p>
@@ -336,7 +336,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow.
 
 If ThemeForge makes your editor nicer to look at, you can support its development:
 
-<a href="https://buymeacoffee.com/j4flmao">
+<a href="https://buymeacoffee.com/j4flmaon">
   <img src="https://img.shields.io/badge/Buy_me_a_coffee-j4flmao-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee">
 </a>
 
