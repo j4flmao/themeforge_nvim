@@ -36,6 +36,20 @@ jobs:
             -c 'lua local themes = require("themeforge.themes"); assert(#themes.ids() == 15)' \
             -c 'qa!'
 
+      - name: Run integration smoke tests
+        shell: bash
+        run: |
+          nvim --headless -u NONE \
+            --cmd 'set rtp^=.' \
+            -c 'runtime plugin/themeforge.lua' \
+            -c 'luafile tests/smoke.lua' \
+            -c 'qa!'
+          nvim --headless -u NONE \
+            --cmd 'set rtp^=.' \
+            -c 'runtime plugin/themeforge.lua' \
+            -c 'luafile tests/upgrade_spec.lua' \
+            -c 'qa!'
+
       - name: Check Lua syntax
         shell: bash
         run: |

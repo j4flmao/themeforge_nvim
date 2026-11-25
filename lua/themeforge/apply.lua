@@ -6,6 +6,31 @@ local themes = require("themeforge.themes")
 local compat = require("themeforge.compat")
 local managed_groups = {}
 
+-- 16 ANSI colours for :terminal buffers, taken from the resolved palette.
+local function set_terminal_colors(c)
+  local order = {
+    c.bg2 or c.bg, c.red, c.green, c.yellow, c.blue, c.purple, c.cyan, c.fg2 or c.fg,
+    c.comment, c.red, c.green, c.yellow, c.blue, c.purple, c.cyan, c.fg,
+  }
+  for i, hex in ipairs(order) do
+    if hex then vim.g["terminal_color_" .. (i - 1)] = hex end
+  end
+end
+
+-- Let statuslines and user config react to a theme change. Lualine caches
+-- its colours, so it gets an explicit refresh when it is loaded.
+local function notify_applied(theme_id, colors, preview)
+  set_terminal_colors(colors)
+  if package.loaded["lualine"] then
+    pcall(function() require("lualine").refresh({ force = true }) end)
+  end
+  pcall(vim.api.nvim_exec_autocmds, "User", {
+    pattern = "ThemeForgeApplied",
+    modeline = false,
+    data = { theme = theme_id, colors = colors, preview = preview == true },
+  })
+end
+
 local function clear_managed_groups()
   for group, _ in pairs(managed_groups) do
     pcall(vim.api.nvim_set_hl, 0, group, {})
@@ -44,7 +69,7 @@ function M.apply(opts)
     return false
   end
 
-  local highlights, colors = resolver.resolve(theme, overrides, ui_options, mix)
+  local highlights, colors = resolver.resolve(theme, overrides, ui_options, mix, state.current.color_overrides)
 
   -- Clear only highlights owned by ThemeForge. A global highlight clear also
   -- destroys unrelated user and plugin customization.
@@ -63,6 +88,19 @@ function M.apply(opts)
   -- Apply compat modules
   for group, _ in pairs(compat.apply(colors, state.config.compat or "auto")) do
     managed_groups[group] = true
+  end
+
+  vim.g.colors_name = "themeforge"
+  notify_applied(theme_id, colors, false)
+
+  -- Profiles, random themes and blends apply for real: reflect that in the panel.
+  local panel = package.loaded["themeforge.ui.panel"]
+  if panel and panel.is_open and not panel.closing then
+    state.current.active_theme = theme_id
+    state.commit_preview()
+    state.begin_preview()
+    panel.set_status("applied")
+    vim.schedule(function() if panel.is_open then panel.render_all() end end)
   end
 
   -- Update state
@@ -87,7 +125,7 @@ function M.preview(theme_id, overrides, ui_options, mix)
   local theme = themes.get(theme_id)
   if not theme then return false end
 
-  local highlights, colors = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {})
+  local highlights, colors = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {}, state.current.color_overrides)
 
   clear_managed_groups()
   for group, hl in pairs(highlights) do
@@ -99,6 +137,9 @@ function M.preview(theme_id, overrides, ui_options, mix)
     managed_groups[group] = true
   end
 
+  notify_applied(theme_id, colors, true)
+  local panel = package.loaded["themeforge.ui.panel"]
+  if panel and panel.is_open then panel.set_status("preview") end
   return true
 end
 

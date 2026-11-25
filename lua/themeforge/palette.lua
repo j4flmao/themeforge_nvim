@@ -102,72 +102,87 @@ function M.is_valid_hex(str)
 end
 
 function M.contrast_ratio(hex_a, hex_b)
-  local function relative_luminance(hex)
-    local c = M.hex_to_rgb(hex)
-    local function linearize(v)
-      v = v / 255
-      return v <= 0.03928 and v / 12.92 or ((v + 0.055) / 1.055) ^ 2.4
-    end
-    return 0.2126 * linearize(c.r) + 0.7152 * linearize(c.g) + 0.0722 * linearize(c.b)
-  end
-  local l1 = relative_luminance(hex_a)
-  local l2 = relative_luminance(hex_b)
-  if l1 < l2 then l1, l2 = l2, l1 end
-  return (l1 + 0.05) / (l2 + 0.05)
+  return require("themeforge.color").wcag_ratio(hex_a, hex_b)
 end
 
--- Apply palette mix blending to a color
--- Apply palette adjustments. `background` is used by opacity to fade a color
--- toward the theme background instead of silently doing nothing.
-function M.apply_mix(hex, mix, background)
+-- Palette keys that act as surfaces (backgrounds) or neutral text. Everything
+-- else is treated as an accent.
+M.SURFACE_KEYS = { bg = true, bg2 = true, bg3 = true, selection = true }
+M.NEUTRAL_KEYS = { fg = true, fg2 = true, comment = true }
+
+function M.role_of(key)
+  if M.SURFACE_KEYS[key] then return "surface" end
+  if M.NEUTRAL_KEYS[key] then return "neutral" end
+  return "accent"
+end
+
+-- OKLCH hue each tint slider pulls toward.
+local TINT_HUES = {
+  purple = 305, blue = 258, green = 145, cyan = 205, pink = 350, orange = 50, warm = 70,
+}
+local TINT_ORDER = { "purple", "blue", "green", "cyan", "pink", "orange", "warm" }
+
+-- How strongly each role reacts to the sliders. Surfaces are deliberately
+-- protected: brightness barely moves them, so +brightness lifts text instead
+-- of washing out the background (the old HSL implementation lifted both).
+local ROLE_GAIN = {
+  accent  = { hue = 0.55, chroma = 0.030, sat = 1.0, light = 0.14 },
+  neutral = { hue = 0.70, chroma = 0.012, sat = 0.5, light = 0.12 },
+  surface = { hue = 0.90, chroma = 0.022, sat = 0.5, light = 0.025 },
+}
+
+--- Apply blend sliders to a colour in OKLCH.
+--- @param hex string
+--- @param mix table palette_mix (tints 0..100, saturation/brightness 0..100 centred on 50, opacity 0..100)
+--- @param background string|nil theme background, used by opacity
+--- @param role "accent"|"neutral"|"surface"|nil
+function M.apply_mix(hex, mix, background, role)
   if not hex or not M.is_valid_hex(hex) then return hex end
   mix = mix or {}
-  local result = hex
+  local color = require("themeforge.color")
+  local gain = ROLE_GAIN[role or "accent"] or ROLE_GAIN.accent
+  local L, C, h = color.hex_to_oklch(hex)
+  local changed = false
 
-  if mix.purple and mix.purple > 0 then
-    result = M.shift_hue(result, (270 - 180) * mix.purple / 100)
-    result = M.adjust_saturation(result, mix.purple * 0.1)
-  end
-  if mix.blue and mix.blue > 0 then
-    result = M.shift_hue(result, (210 - 180) * mix.blue / 100)
-    result = M.adjust_saturation(result, mix.blue * 0.05)
-  end
-  if mix.green and mix.green > 0 then
-    result = M.shift_hue(result, (120 - 180) * mix.green / 100)
-    result = M.adjust_saturation(result, mix.green * 0.05)
-  end
-  if mix.pink and mix.pink > 0 then
-    result = M.shift_hue(result, (330 - 180) * mix.pink / 100)
-    result = M.adjust_saturation(result, mix.pink * 0.08)
-  end
-  if mix.orange and mix.orange > 0 then
-    result = M.shift_hue(result, (30 - 180) * mix.orange / 100)
-    result = M.adjust_saturation(result, mix.orange * 0.07)
-  end
-  if mix.cyan and mix.cyan > 0 then
-    result = M.shift_hue(result, (180 - 180) * mix.cyan / 100)
-    result = M.adjust_saturation(result, mix.cyan * 0.06)
-  end
-  if mix.warm and mix.warm > 0 then
-    result = M.shift_hue(result, (30 - 180) * mix.warm / 100)
-    result = M.adjust_saturation(result, mix.warm * 0.08)
+  for _, key in ipairs(TINT_ORDER) do
+    local t = (mix[key] or 0) / 100
+    if t > 0 then
+      -- Near-grey colours have no meaningful hue: adopt the target hue.
+      h = C < 0.01 and TINT_HUES[key] or color.hue_toward(h, TINT_HUES[key], t * gain.hue)
+      C = C + gain.chroma * t
+      changed = true
+    end
   end
 
-  if mix.saturation and mix.saturation ~= 50 then
-    local delta = (mix.saturation - 50) * 1.5
-    result = M.adjust_saturation(result, delta)
+  local sat = mix.saturation or 50
+  if sat ~= 50 then
+    C = C * (2 ^ ((sat - 50) / 25)) ^ gain.sat
+    changed = true
   end
 
-  if mix.brightness and mix.brightness ~= 50 then
-    local delta = (mix.brightness - 50) * 1.2
-    result = M.adjust_lightness(result, delta)
+  local bright = mix.brightness or 50
+  if bright ~= 50 then
+    L = math.max(0, math.min(1, L + (bright - 50) / 50 * gain.light))
+    changed = true
   end
 
-  if background and M.is_valid_hex(background) and mix.opacity and mix.opacity < 100 then
-    result = M.mix(background, result, math.max(0, math.min(100, mix.opacity)) / 100)
+  local result = changed and color.oklch_to_hex(L, math.max(0, C), h) or hex
+
+  local opacity = mix.opacity or 100
+  if role ~= "surface" and background and M.is_valid_hex(background) and opacity < 100 then
+    result = color.mix(background, result, math.max(0, math.min(100, opacity)) / 100)
   end
 
   return result
+end
+
+--- True when a palette_mix differs from the neutral defaults.
+function M.mix_is_active(mix)
+  if not mix then return false end
+  for _, key in ipairs(TINT_ORDER) do
+    if (mix[key] or 0) > 0 then return true end
+  end
+  return (mix.saturation or 50) ~= 50 or (mix.brightness or 50) ~= 50 or (mix.opacity or 100) < 100
 end
 
 return M

@@ -97,13 +97,9 @@ local function resolve_role_color(role, theme_groups, colors, mix)
     local gdef = theme_groups[gname]
     if gdef and gdef.fg then
       -- gdef.fg is a color key like "purple", "pink", "iris" etc.
-      local hex = colors[gdef.fg]
-      if hex and palette_mod.is_valid_hex(hex) then
-        return palette_mod.apply_mix(hex, mix, colors.bg)
-      end
-      -- or it might already be a hex value
-      if palette_mod.is_valid_hex(gdef.fg) then
-        return palette_mod.apply_mix(gdef.fg, mix, colors.bg)
+      local hex = colors[gdef.fg] or gdef.fg
+      if palette_mod.is_valid_hex(hex) then
+        return hex
       end
     end
   end
@@ -119,19 +115,12 @@ local function get_role_colors()
 
   local mix = state.current.palette_mix or {}
 
-  -- Build resolved colors table (key -> hex with mix applied)
-  local colors = {}
-  for k, v in pairs(theme.colors) do
-    if palette_mod.is_valid_hex(v) then
-      colors[k] = palette_mod.apply_mix(v, mix, theme.colors.bg)
-    else
-      colors[k] = v
-    end
-  end
+  -- Same palette as the editor: overrides, OKLCH blend and contrast floor.
+  local colors = require("themeforge.resolver").palette(theme, mix, state.current.color_overrides)
 
   local role_colors = {}
   for role, _ in pairs(ROLE) do
-    role_colors[role] = resolve_role_color(role, theme.groups, theme.colors, mix)
+    role_colors[role] = resolve_role_color(role, theme.groups, colors, mix)
   end
 
   -- Fallback: if role didn't resolve, use a sensible default from colors
@@ -159,6 +148,8 @@ function M.init(panel)
 end
 
 function M.render()
+  -- The preview pane is hidden on narrow layouts.
+  if not panel_ref or not panel_ref.bufs then return end
   local buf = panel_ref.bufs.preview
   if not buf or not vim.api.nvim_buf_is_valid(buf) then return end
 

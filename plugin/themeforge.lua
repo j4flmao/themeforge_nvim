@@ -33,12 +33,34 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
       require("themeforge").save()
     end
 
+  elseif subcmd == "copy" then
+    require("themeforge").copy()
+
   elseif subcmd == "reset" then
     require("themeforge").reset()
 
   elseif subcmd == "save-blend" then
     local name = args[2]
     require("themeforge").save_blend(name)
+
+  elseif subcmd == "load-blend" then
+    local name = args[2]
+    require("themeforge").load_blend(name)
+
+  elseif subcmd == "list-blends" then
+    require("themeforge").list_blends()
+
+  elseif subcmd == "profile" then
+    require("themeforge").apply_profile(args[2])
+
+  elseif subcmd == "random" then
+    require("themeforge").random_theme()
+
+  elseif subcmd == "compat" then
+    require("themeforge").set_compat(args[2] or "auto")
+
+  elseif subcmd == "export" then
+    require("themeforge").export(args[2])
 
   elseif subcmd == "doctor" then
     require("themeforge").doctor()
@@ -63,7 +85,7 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
 end, {
   nargs = "*",
   complete = function(arglead, cmdline, cursorpos)
-    local subcmds = { "open", "close", "apply", "save", "reset", "save-blend", "doctor", "list", "status" }
+    local subcmds = { "open", "close", "apply", "save", "copy", "reset", "save-blend", "load-blend", "list-blends", "profile", "random", "compat", "doctor", "export", "list", "status" }
     local parts = vim.split(cmdline, "%s+")
     if #parts <= 2 then
       return vim.tbl_filter(function(s)
@@ -76,6 +98,15 @@ end, {
       return vim.tbl_filter(function(s)
         return s:find(arglead, 1, true) == 1
       end, ids)
+    end
+    if parts[2] == "load-blend" then
+      return require("themeforge").list_blends({ silent = true })
+    end
+    if parts[2] == "profile" then
+      return require("themeforge").list_profiles()
+    end
+    if parts[2] == "compat" then
+      return { "auto", "all", "none" }
     end
     return {}
   end,

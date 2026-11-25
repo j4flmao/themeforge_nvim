@@ -35,6 +35,12 @@ Thank you for your interest in contributing!
    ```
 6. Push and open a PR
 
+### Preset contributions
+
+Visual preset contributions are especially welcome. Add them under `presets/`,
+keep the configuration focused, and include a short intent description and a
+screenshot when possible.
+
 ## Coding Standards
 
 - Use Lua with Neovim conventions

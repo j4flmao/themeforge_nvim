@@ -17,6 +17,24 @@ local registry = {
   "github-dark",
 }
 
+local metadata = {
+  ["tokyonight-storm"] = { "blue", "calm", "balanced" },
+  ["tokyonight-night"] = { "blue", "calm", "minimal" },
+  ["catppuccin-mocha"] = { "pastel", "soft", "warm" },
+  ["gruvbox-dark"] = { "warm", "retro", "earthy" },
+  ["nord"] = { "blue", "minimal", "cool" },
+  ["rose-pine"] = { "purple", "soft", "low-distraction" },
+  ["kanagawa-wave"] = { "warm", "cinematic", "balanced" },
+  ["dracula"] = { "purple", "vivid", "high-contrast" },
+  ["onedark"] = { "balanced", "classic", "low-distraction" },
+  ["solarized-dark"] = { "low-contrast", "warm", "minimal" },
+  ["nightfox"] = { "blue", "vivid", "balanced" },
+  ["everforest"] = { "green", "soft", "nature" },
+  ["material-darker"] = { "high-contrast", "vivid", "classic" },
+  ["oxocarbon"] = { "monochrome", "minimal", "high-contrast" },
+  ["github-dark"] = { "blue", "classic", "low-distraction" },
+}
+
 -- Map id to module name (replace - with _)
 local function id_to_module(id)
   return id:gsub("%-", "_")
@@ -44,6 +62,7 @@ function M.list()
         name = theme.name,
         variant = theme.variant,
         dot = theme.dot,
+        tags = metadata[id] or {},
       })
     end
   end

@@ -71,6 +71,14 @@ function M.generate_block()
     table.insert(lines, "  },")
   end
 
+  if next(s.color_overrides or {}) then
+    table.insert(lines, "  colors = {")
+    for key, value in pairs(s.color_overrides) do
+      table.insert(lines, string.format('    %s = "%s",', key, value))
+    end
+    table.insert(lines, "  },")
+  end
+
   -- Blend sliders (palette_mix)
   if s.palette_mix then
     table.insert(lines, "  mix = {")
@@ -265,6 +273,11 @@ function M.write(filepath)
     )
   end
 
+  pcall(vim.api.nvim_exec_autocmds, "User", {
+    pattern = "ThemeForgeSaved",
+    modeline = false,
+    data = { path = filepath, theme = state and state.current and state.current.active_theme },
+  })
   return true
 end
 

@@ -8,6 +8,14 @@ A visual theme workbench for Neovim — discover, tune, check readability, and s
 
 - 15 bundled dark themes (no internet required)
 - Live preview with color blending sliders
+- Favorite and recently used theme sections
+- Named palette blend save/load commands
+- Undo and redo for preview changes
+- Direct semantic color overrides with config export
+- Quick `focus`, `high-contrast`, `low-distraction`, and `monochrome` profiles
+- Live plugin coverage status in the panel
+- Explicit plugin compatibility modes: `auto`, `all`, and `none`
+- Mood-tag search and random theme discovery
 - UI customization (transparency, bold, italic, cursor styling)
 - Readability feedback for text and comments while tuning a palette
 - Generate a custom dark theme from an image
@@ -101,10 +109,16 @@ require("themeforge").setup({
 | `:ThemeForge close` | Close panel |
 | `:ThemeForge apply [theme]` | Apply theme to session |
 | `:ThemeForge save [file]` | Save to config file |
+| `:ThemeForge copy` | Copy current configuration to clipboard |
 | `:ThemeForge reset` | Reset all overrides |
 | `:ThemeForge list` | List bundled themes |
 | `:ThemeForge status` | Show active theme |
 | `:ThemeForge save-blend [name]` | Save the current palette blend |
+| `:ThemeForge load-blend [name]` | Load a saved palette blend |
+| `:ThemeForge list-blends` | List saved palette blends |
+| `:ThemeForge profile [name]` | Apply a built-in profile |
+| `:ThemeForge random` | Apply a random theme |
+| `:ThemeForge compat [auto\|all\|none]` | Set plugin compatibility mode |
 | `:ThemeForge doctor` | Check contrast and integrations |
 
 ---
