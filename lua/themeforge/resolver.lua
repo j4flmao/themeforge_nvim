@@ -125,7 +125,8 @@ local function modern_defaults(c)
 end
 
 -- Build the full highlight table
-function M.resolve(theme, overrides, ui_options, mix, color_overrides)
+--- @param lsp_tokens table|nil LSP semantic token customizations (see themeforge.lsp_tokens)
+function M.resolve(theme, overrides, ui_options, mix, color_overrides, lsp_tokens)
   overrides = overrides or {}
   ui_options = ui_options or {}
   mix = mix or {}
@@ -183,6 +184,33 @@ function M.resolve(theme, overrides, ui_options, mix, color_overrides)
       highlights[g] = highlights[g] or {}
       highlights[g].underline = true
     end
+  end
+
+  -- LSP semantic token customizations (above theme/defaults, below explicit overrides)
+  -- Colour a group would have without the customization: follow links through
+  -- this theme's highlights first, then the group's original (pre-ThemeForge)
+  -- definition, e.g. @lsp.type.parameter -> @variable.parameter -> fg.
+  local function base_fg(group)
+    local name, hops = group, 0
+    while name and hops < 12 do
+      hops = hops + 1
+      local def = highlights[name]
+      if def == nil then
+        local ok, apply = pcall(require, "themeforge.apply")
+        def = ok and apply.original and apply.original(name) or nil
+      end
+      if not def then return nil end
+      if def.link then
+        name = def.link
+      else
+        local fg = def.fg
+        if type(fg) == "number" then fg = string.format("#%06x", fg) end
+        return fg
+      end
+    end
+  end
+  for group, hl in pairs(require("themeforge.lsp_tokens").resolve(lsp_tokens, colors, base_fg)) do
+    highlights[group] = hl
   end
 
   -- Apply user overrides (highest priority)
@@ -245,6 +273,8 @@ function M.resolve(theme, overrides, ui_options, mix, color_overrides)
     ThemeForgeBadgePreview = { fg = colors.bg, bg = colors.yellow or colors.orange, bold = true },
     ThemeForgeBadgeApplied = { fg = colors.bg, bg = colors.green or accent, bold = true },
     ThemeForgeBadgeSaved = { fg = colors.bg, bg = colors.cyan or accent, bold = true },
+    ThemeForgeFlagOn = { fg = colors.bg, bg = colors.purple or accent, bold = true },
+    ThemeForgeFlagOff = { fg = colors.comment or surface },
   }) do
     if not overrides[name] then highlights[name] = hl end
   end

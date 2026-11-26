@@ -59,6 +59,9 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
   elseif subcmd == "compat" then
     require("themeforge").set_compat(args[2] or "auto")
 
+  elseif subcmd == "token" then
+    require("themeforge.ui.token_editor").at_cursor()
+
   elseif subcmd == "export" then
     require("themeforge").export(args[2])
 
@@ -85,7 +88,7 @@ vim.api.nvim_create_user_command("ThemeForge", function(opts)
 end, {
   nargs = "*",
   complete = function(arglead, cmdline, cursorpos)
-    local subcmds = { "open", "close", "apply", "save", "copy", "reset", "save-blend", "load-blend", "list-blends", "profile", "random", "compat", "doctor", "export", "list", "status" }
+    local subcmds = { "open", "close", "apply", "save", "copy", "reset", "save-blend", "load-blend", "list-blends", "profile", "random", "compat", "doctor", "export", "token", "list", "status" }
     local parts = vim.split(cmdline, "%s+")
     if #parts <= 2 then
       return vim.tbl_filter(function(s)

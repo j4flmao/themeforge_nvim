@@ -76,6 +76,20 @@ function M.report()
       table.insert(contrast, string.format("%-18s %5.1f:1  %-4s  APCA Lc %3.0f", label, ratio, grade, math.abs(color.apca_lc(fg, bg))))
     end
   end
+  -- Customized LSP semantic tokens are real text: same bar as code.
+  local lsp = require("themeforge.lsp_tokens")
+  local groups = vim.tbl_keys(state.current.lsp_tokens or {})
+  table.sort(groups)
+  for _, group in ipairs(groups) do
+    local hl = lsp.highlight(group, state.current.lsp_tokens[group], colors)
+    if color.is_hex(hl.fg) and color.is_hex(colors.bg) then
+      local ratio = color.wcag_ratio(hl.fg, colors.bg)
+      local grade, ok = color.grade(ratio, "text")
+      if not ok then issues = issues + 1 end
+      local label = group:gsub("^@lsp%.", "")
+      table.insert(contrast, string.format("%-18s %5.1f:1  %-4s  APCA Lc %3.0f", label, ratio, grade, math.abs(color.apca_lc(hl.fg, colors.bg))))
+    end
+  end
   table.insert(report.sections, { name = "Contrast (WCAG 2 pass/fail, APCA advisory)", rows = contrast })
 
   local cvd = {}
@@ -89,6 +103,43 @@ function M.report()
     end
   end
   table.insert(report.sections, { name = "Colour-blind safety (protan / deutan / tritan)", rows = cvd })
+
+  -- LSP tokens: is the customized colour what is actually drawn in open buffers?
+  local lsp_rows = {}
+  local custom = state.current.lsp_tokens or {}
+  if next(custom) then
+    local results = require("themeforge.lsp_tokens").verify(custom)
+    local names = vim.tbl_keys(custom)
+    table.sort(names)
+    local any, overridden = false, false
+    for _, group in ipairs(names) do
+      local r = results[group]
+      local label = group:gsub("^@lsp%.", "")
+      if r and r.total > 0 then
+        any = true
+        if r.ok == r.total then
+          table.insert(lsp_rows, string.format("%-24s %3d/%-3d OK", label, r.ok, r.total))
+        else
+          overridden = true
+          local by = vim.tbl_keys(r.by)
+          table.sort(by, function(a, b) return r.by[a] > r.by[b] end)
+          table.insert(lsp_rows, string.format("%-24s %3d/%-3d OVERRIDDEN by %s%s", label, r.ok, r.total, by[1],
+            r.sample and (' (e.g. "' .. r.sample .. '")') or ""))
+        end
+      elseif custom[group].fg then
+        table.insert(lsp_rows, string.format("%-24s not in open buffers", label))
+      end
+    end
+    if overridden then
+      table.insert(lsp_rows, "OVERRIDDEN: a more specific group wins there; run :ThemeForge token on that word.")
+    end
+    if not any and #lsp_rows == 0 then
+      table.insert(lsp_rows, "Only styles customized (nothing to colour-check).")
+    end
+  else
+    table.insert(lsp_rows, "No LSP tokens customized.")
+  end
+  table.insert(report.sections, { name = "LSP tokens in your open buffers (lines shown so far)", rows = lsp_rows })
 
   local notes = {}
   if state.current.ui_options and state.current.ui_options.transparency then
@@ -150,7 +201,7 @@ local function show_float(lines)
   end
   local ns = vim.api.nvim_create_namespace("themeforge_doctor")
   for i, line in ipairs(lines) do
-    local s = line:find("LOW") or line:find("CLOSE") or line:find("Broken link")
+    local s = line:find("LOW") or line:find("CLOSE") or line:find("Broken link") or line:find("OVERRIDDEN by", 1, true)
     if s then vim.api.nvim_buf_add_highlight(buf, ns, "DiagnosticWarn", i - 1, 0, -1)
     elseif line:find("  OK") or line:find(" AAA") or line:find(" AA ") or line:find("^No issues") then
       vim.api.nvim_buf_add_highlight(buf, ns, "DiagnosticOk", i - 1, 0, -1)

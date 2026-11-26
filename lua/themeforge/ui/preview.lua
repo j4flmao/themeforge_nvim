@@ -22,8 +22,23 @@ local ROLE = {
   todo     = { "Todo" },
 }
 
--- Each line: list of { text, role }
+-- Each line: list of { text, role }. A role starting with "@" (or a list of
+-- such groups) uses that highlight group directly: the LSP sample below is
+-- drawn with the real @lsp.type.* / @lsp.mod.* groups, so LSP token
+-- customizations show up here live.
+local T = function(name) return "@lsp.type." .. name end
 local preview_blocks = {
+  -- ── LSP semantic tokens ──
+  { { "// LSP semantic tokens", "comment" } },
+  { { "class ", "keyword" }, { "Cache", T("class") }, { "<", "punct" }, { "T", T("typeParameter") }, { "> ", "punct" }, { "implements ", "keyword" }, { "Store", T("interface") }, { " {", "punct" } },
+  { { "  static ", "keyword" }, { "MAX", { T("property"), "@lsp.mod.readonly", "@lsp.mod.static" } }, { " = ", "operator" }, { "Level", T("enum") }, { ".", "punct" }, { "High", T("enumMember") }, { ";", "punct" } },
+  { { "  async ", "keyword" }, { "get", { T("method"), "@lsp.mod.async" } }, { "(", "punct" }, { "key", T("parameter") }, { ": ", "punct" }, { "string", "type" }, { ", ", "punct" }, { "fallback", T("parameter") }, { "?: ", "punct" }, { "T", T("typeParameter") }, { ") {", "punct" } },
+  { { "    const ", "keyword" }, { "hit", { T("variable"), "@lsp.mod.readonly" } }, { " = ", "operator" }, { "this", "keyword" }, { ".", "punct" }, { "items", T("property") }, { ".", "punct" }, { "get", T("method") }, { "(", "punct" }, { "key", T("parameter") }, { ");", "punct" } },
+  { { "    return ", "keyword" }, { "Math", { T("namespace"), "@lsp.mod.defaultLibrary" } }, { ".", "punct" }, { "max", { T("function"), "@lsp.mod.defaultLibrary" } }, { "(", "punct" }, { "hit", T("variable") }, { ", ", "punct" }, { "fallback", T("parameter") }, { ");", "punct" } },
+  { { "  }", "punct" } },
+  { { "  @memo ", T("decorator") }, { "oldGet", { T("method"), "@lsp.mod.deprecated" } }, { "() {}", "punct" } },
+  { { "}", "punct" } },
+  {},
   -- ── Lua ──
   { { "-- Lua sample", "comment" } },
   { { "local ", "keyword" }, { "function ", "keyword" }, { "greet", "func" }, { "(", "punct" }, { "name", "variable" }, { ")", "punct" } },
@@ -189,7 +204,18 @@ function M.render()
       for _, token in ipairs(block) do
         local text = token[1]
         local role = token[2]
-        if role and role_colors[role] then
+        local groups = type(role) == "table" and role or (type(role) == "string" and role:sub(1, 1) == "@" and { role }) or nil
+        if groups then
+          -- Real highlight groups; later entries (modifiers) win, like Neovim's
+          -- semantic token priorities.
+          for gi, group in ipairs(groups) do
+            pcall(vim.api.nvim_buf_set_extmark, buf, ns, i - 1, col_offset, {
+              end_col = col_offset + #text,
+              hl_group = group,
+              priority = 100 + gi,
+            })
+          end
+        elseif role and role_colors[role] then
           pcall(vim.api.nvim_buf_set_extmark, buf, ns, i - 1, col_offset, {
             end_col = col_offset + #text,
             hl_group = "ThemeForgeP_" .. role,

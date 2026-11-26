@@ -382,6 +382,13 @@ local HELP = {
   { "H / L", "Slider -10 / +10" },
   { "0", "Reset slider" },
   { "" },
+  { "LSP TOKENS" },
+  { "Enter", "Pick colour (palette / #hex)" },
+  { "B / I / U / S", "Bold / italic / underline / strike" },
+  { "X", "Reset token to default" },
+  { "]] / [[", "Next / previous section" },
+  { ":ThemeForge token", "Style token under cursor" },
+  { "" },
   { "ACTIONS" },
   { "a", "Apply theme (live, session)" },
   { "u / Ctrl-r", "Undo / redo" },
@@ -410,7 +417,9 @@ function M.show_help()
   end
   table.insert(lines, "")
   table.insert(lines, " Press q or Esc to close")
-  local w = math.min(44, vim.o.columns - 4)
+  local w = 0
+  for _, l in ipairs(lines) do w = math.max(w, vim.fn.strdisplaywidth(l)) end
+  w = math.min(w + 2, vim.o.columns - 4)
   local h = math.min(#lines, vim.o.lines - 4)
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)

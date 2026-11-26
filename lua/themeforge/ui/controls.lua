@@ -111,6 +111,7 @@ function M.render()
 
   local lines = {}
   local marks = {} -- { row, col_start, col_end, hl } (byte columns, col_end -1 = eol)
+  local virt = {} -- { row, chunks } right-aligned virtual text
   M._line_actions = {}
 
   local function add(text, hl)
@@ -206,18 +207,121 @@ function M.render()
     for _, tk in ipairs(token_keys) do
       local hex = colors[tk.key] or "-"
       local edited = state.current.color_overrides and state.current.color_overrides[tk.key]
-      local r = add(string.format(" ██ %-12s %s%s", tk.label, hex, edited and "  ✎" or ""))
+      local r = add(string.format(" ██ %-12s %s%s", tk.label, hex, edited and "  *" or ""))
       M._line_actions[r] = { type = "color", key = tk.key, label = tk.label }
       if color.is_hex(hex) then
         local group = "ThemeForgeSwatch_" .. hex:sub(2)
         pcall(vim.api.nvim_set_hl, 0, group, { fg = hex })
         table.insert(marks, { r, 1, 7, group })
       end
-      if edited then table.insert(marks, { r, #lines[r] - 3, -1, "ThemeForgeWarn" }) end
+      if edited then table.insert(marks, { r, #lines[r] - 1, -1, "ThemeForgeWarn" }) end
     end
   else
     add(" (no theme selected)", "ThemeForgeMuted")
   end
+
+  -- ── LSP SEMANTIC TOKENS ──
+  local lsp = require("themeforge.lsp_tokens")
+  local custom = state.current.lsp_tokens or {}
+  local n_custom = 0
+  for _ in pairs(custom) do n_custom = n_custom + 1 end
+  header("LSP TOKENS")
+  if n_custom > 0 then
+    table.insert(virt, { #lines - 1, { { n_custom .. " customized ", "ThemeForgeAccent" } } })
+  end
+  local active = lsp.active()
+  do
+    local servers = #active.clients > 0 and table.concat(active.clients, " · ") or "no LSP running"
+    local legend = #active.clients > 0 and "  ● in your code" or ""
+    local room = math.max(8, width - 3 - vim.fn.strdisplaywidth(legend))
+    if vim.fn.strdisplaywidth(servers) > room then
+      servers = vim.fn.strcharpart(servers, 0, room - 1) .. "…"
+    end
+    local r = add("  " .. servers .. legend, "ThemeForgeMuted")
+    if legend ~= "" then table.insert(marks, { r, 2 + #servers + 2, 2 + #servers + 2 + #"●", "ThemeForgeOk" }) end
+    -- key hints, with the keys drawn as badges
+    local hint = width >= 40 and { { "⏎", " colour  " }, { "B I U S", " style  " }, { "X", " reset" } }
+      or { { "⏎", " " }, { "BIUS", " " }, { "X", "" } }
+    local text, spans = "  ", {}
+    for _, h in ipairs(hint) do
+      table.insert(spans, { #text, #text + #h[1] })
+      text = text .. h[1] .. h[2]
+    end
+    r = add(text, "ThemeForgeMuted")
+    for _, sp in ipairs(spans) do table.insert(marks, { r, sp[1], sp[2], "ThemeForgeTitle" }) end
+  end
+
+  -- Column layout: " ██ ● label… sample… B I U S *"
+  -- (no ✎: terminals draw it wider than one cell and it overlaps the badges)
+  local show_sample = width >= 40
+  local label_w = width >= 46 and 15 or (width >= 40 and 14 or 13)
+  -- 6 (swatch + dot) + label + 1 + sample + 1 + 7 (B I U S) + 2 (" *") must fit the pane
+  local sample_w = show_sample and math.max(6, math.min(12, width - label_w - 17)) or 0
+  local function clip(text, w)
+    if vim.fn.strdisplaywidth(text) <= w then return text .. string.rep(" ", w - vim.fn.strdisplaywidth(text)) end
+    return vim.fn.strcharpart(text, 0, w - 1) .. "…"
+  end
+  local STYLE_KEYS = { { "bold", "B" }, { "italic", "I" }, { "underline", "U" }, { "strikethrough", "S" } }
+
+  local function row_for(row)
+    local spec = custom[row.group]
+    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = row.group, link = false })
+    local fg = ok and hl.fg and string.format("#%06x", hl.fg) or nil
+    local swatch = fg and "██" or "░░"
+    local dot = row.used and "●" or " "
+    local label = clip(row.label, label_w)
+    local sample = show_sample and clip(active.samples[row.group] or "", sample_w) or ""
+    local sample_len = #(sample:gsub("%s+$", ""))
+    local flags = {}
+    for _, s in ipairs(STYLE_KEYS) do table.insert(flags, s[2]) end
+    local text = " " .. swatch .. " " .. dot .. " " .. label .. " " .. (show_sample and (sample .. " ") or "")
+      .. table.concat(flags, " ") .. (spec and " *" or "")
+    local r = add(text)
+    M._line_actions[r] = { type = "lsp", group = row.group, label = row.label }
+
+    -- byte offsets
+    local c = 1
+    local sw_end = c + #swatch
+    if fg then
+      local group = "ThemeForgeSwatch_" .. fg:sub(2)
+      pcall(vim.api.nvim_set_hl, 0, group, { fg = fg })
+      table.insert(marks, { r, c, sw_end, group })
+    else
+      table.insert(marks, { r, c, sw_end, "ThemeForgeMuted" })
+    end
+    c = sw_end + 1
+    if row.used then table.insert(marks, { r, c, c + #dot, "ThemeForgeOk" }) end
+    c = c + #dot + 1
+    -- the token name: muted when the server does not use it, normal otherwise
+    table.insert(marks, { r, c, c + #label, (spec and "ThemeForgeAccent") or (row.used and "ThemeForgeText" or "ThemeForgeMuted") })
+    c = c + #label + 1
+    if show_sample then
+      -- the sample word is drawn with the token's own highlight: what you see is what you get
+      table.insert(marks, { r, c, c + sample_len, row.group })
+      c = c + #sample + 1
+    end
+    for i, s in ipairs(STYLE_KEYS) do
+      local on = spec and spec[s[1]]
+      table.insert(marks, { r, c, c + 1, on and "ThemeForgeFlagOn" or "ThemeForgeFlagOff" })
+      c = c + 1 + (i < #STYLE_KEYS and 1 or 0)
+    end
+    if spec then table.insert(marks, { r, c, -1, "ThemeForgeWarn" }) end
+  end
+
+  local rows = lsp.panel_rows(active)
+  local function group_rows(want_modifier)
+    local used, unused = {}, {}
+    for _, row in ipairs(rows) do
+      if (row.modifier and true or false) == want_modifier then
+        table.insert(row.used and used or unused, row)
+      end
+    end
+    return vim.list_extend(used, unused)
+  end
+  add("  TYPES", "ThemeForgeAccent")
+  for _, row in ipairs(group_rows(false)) do row_for(row) end
+  add("  MODIFIERS  style only", "ThemeForgeAccent")
+  for _, row in ipairs(group_rows(true)) do row_for(row) end
 
   -- ── INTEGRATIONS ──
   local mode = require("themeforge").compat_status()
@@ -254,6 +358,9 @@ function M.render()
 
   local ns = vim.api.nvim_create_namespace("themeforge_controls")
   vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+  for _, v in ipairs(virt) do
+    pcall(vim.api.nvim_buf_set_extmark, buf, ns, v[1] - 1, 0, { virt_text = v[2], virt_text_pos = "right_align" })
+  end
   for _, m in ipairs(marks) do
     local row, s, e, hl = m[1], m[2], m[3], m[4]
     local len = #(lines[row] or "")
@@ -336,6 +443,9 @@ function M.handle_action_at_cursor()
       require("themeforge.ui.preview").render()
     end)
 
+  elseif action.type == "lsp" then
+    M.pick_lsp_color(action)
+
   elseif action.type == "button" then
     if action.action == "apply" then
       panel_ref.apply()
@@ -346,6 +456,41 @@ function M.handle_action_at_cursor()
       panel_ref.export_prompt()
     end
   end
+end
+
+-- ── LSP token editing ────────────────────────────────────────────────────────
+
+local function lsp_action_at_cursor()
+  local win = panel_ref and panel_ref.wins.controls
+  if not win or not vim.api.nvim_win_is_valid(win) then return nil end
+  local action = M._line_actions[vim.api.nvim_win_get_cursor(win)[1]]
+  return action and action.type == "lsp" and action or nil
+end
+
+local function lsp_changed()
+  live_preview() -- first, so the rows read the new effective colours
+  M.render()
+end
+
+--- Choose the colour of an LSP token: a palette key, a custom hex, or the default.
+function M.pick_lsp_color(action)
+  require("themeforge.ui.token_editor").pick_color(action.group, action.label, lsp_changed)
+end
+
+--- Toggle bold / italic / underline / strikethrough on the LSP token under the cursor.
+function M.toggle_lsp_style(style)
+  local action = lsp_action_at_cursor()
+  if not action then return false end
+  require("themeforge.ui.token_editor").toggle_style(action.group, style, lsp_changed)
+  return true
+end
+
+--- Reset the LSP token under the cursor to the theme / Neovim default.
+function M.reset_lsp_token()
+  local action = lsp_action_at_cursor()
+  if not action then return false end
+  require("themeforge.ui.token_editor").reset(action.group, lsp_changed)
+  return true
 end
 
 -- Adjust slider: delta can be positive or negative
@@ -382,6 +527,44 @@ function M.setup_keymaps()
   -- Enter / Space → toggle, cycle, confirm button, edit color/slider
   map("n", "<CR>", function() M.handle_action_at_cursor() end)
   map("n", "<Space>", function() M.handle_action_at_cursor() end)
+
+  -- ]] / [[ jump between sections (ACTIONS, READABILITY, ..., LSP TOKENS)
+  local function jump(dir)
+    local win = panel_ref.wins.controls
+    if not win or not vim.api.nvim_win_is_valid(win) then return end
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local row = vim.api.nvim_win_get_cursor(win)[1]
+    local headers = {}
+    for i, l in ipairs(lines) do
+      if l:match("^ %u[%u ]+") and not M._line_actions[i] then table.insert(headers, i) end
+    end
+    local target
+    if dir > 0 then
+      for _, h in ipairs(headers) do if h > row then target = h break end end
+    else
+      local current_header
+      for i = #headers, 1, -1 do if headers[i] <= row then current_header = headers[i] break end end
+      for i = #headers, 1, -1 do if headers[i] < (current_header or row) then target = headers[i] break end end
+    end
+    if target then
+      local header = target
+      -- land on the first actionable row of the section
+      for r = target, math.min(#lines, target + 5) do
+        if M._line_actions[r] then target = r break end
+      end
+      vim.api.nvim_win_set_cursor(win, { target, 0 })
+      vim.api.nvim_win_call(win, function() vim.fn.winrestview({ topline = math.max(1, header - 1) }) end)
+    end
+  end
+  map("n", "]]", function() jump(1) end)
+  map("n", "[[", function() jump(-1) end)
+
+  -- LSP token styles (only act on LSP TOKENS rows)
+  map("n", "B", function() M.toggle_lsp_style("bold") end)
+  map("n", "I", function() M.toggle_lsp_style("italic") end)
+  map("n", "U", function() M.toggle_lsp_style("underline") end)
+  map("n", "S", function() M.toggle_lsp_style("strikethrough") end)
+  map("n", "X", function() M.reset_lsp_token() end)
 
   -- h / Left → decrease slider by 5
   map("n", "h", function()

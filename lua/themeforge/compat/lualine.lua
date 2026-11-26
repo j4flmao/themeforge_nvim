@@ -23,4 +23,32 @@ function M.groups(c)
   }
 end
 
+--- A lualine theme table built from the resolved palette. Shipped as
+--- lua/lualine/themes/themeforge.lua, which lualine's "auto" theme loads
+--- because ThemeForge sets vim.g.colors_name = "themeforge".
+function M.theme(c)
+  local bar = c.bg2 or c.bg
+  local mid = c.bg3 or bar
+  local function mode(accent)
+    return {
+      a = { fg = c.bg, bg = accent or c.blue, gui = "bold" },
+      b = { fg = c.fg, bg = mid },
+      c = { fg = c.fg2 or c.fg, bg = bar },
+    }
+  end
+  return {
+    normal = mode(c.blue),
+    insert = mode(c.green),
+    visual = mode(c.purple),
+    replace = mode(c.red),
+    command = mode(c.yellow or c.orange),
+    terminal = mode(c.cyan),
+    inactive = {
+      a = { fg = c.comment, bg = bar, gui = "bold" },
+      b = { fg = c.comment, bg = bar },
+      c = { fg = c.comment, bg = bar },
+    },
+  }
+end
+
 return M

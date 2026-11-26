@@ -2,6 +2,12 @@
 -- Run with:
 -- nvim --headless -u NONE --cmd 'set rtp^=.' -c 'runtime plugin/themeforge.lua' -c 'luafile tests/upgrade_spec.lua' -c 'qa!'
 
+-- Never touch the real user config / data: point stdpath() at a sandbox.
+local SANDBOX = vim.fn.tempname()
+for _, var in ipairs({ "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME" }) do
+  vim.env[var] = SANDBOX .. "/" .. var:lower()
+end
+
 local color = require("themeforge.color")
 local palette = require("themeforge.palette")
 local themes = require("themeforge.themes")
@@ -205,6 +211,56 @@ test("save writes config and marks the bar as saved", function()
   assert(vim.fn.filereadable(path) == 1)
   assert(panel.status.kind == "saved" and panel.status.path == path)
   panel.close()
+end)
+
+test("save never points init.lua at files outside the config dir", function()
+  local cfg = vim.fn.stdpath("config")
+  vim.fn.mkdir(cfg, "p")
+  local init = cfg .. "/init.lua"
+  vim.fn.writefile({ "-- user init" }, init)
+  local writer = require("themeforge.writer")
+
+  writer.write(vim.fn.tempname() .. ".lua") -- outside the config dir
+  assert(not table.concat(vim.fn.readfile(init), "\n"):find("themeforge:ref", 1, true), "ref added for outside file")
+
+  local inside = cfg .. "/lua/theme.lua"
+  writer.write(inside) -- inside the config dir: guarded ref is fine
+  local text = table.concat(vim.fn.readfile(init), "\n")
+  assert(text:find("filereadable", 1, true), "ref must be guarded")
+  os.remove(inside)
+  assert(pcall(dofile, init), "init.lua must still load after the theme file is deleted")
+end)
+
+test("statusline / tabline integration behaves like a colorscheme", function()
+  -- the lualine theme file follows the active palette
+  tf.apply("nord")
+  local path = vim.api.nvim_get_runtime_file("lua/lualine/themes/themeforge.lua", false)[1]
+  assert(path, "lualine theme file not on runtimepath")
+  local lt = dofile(path)
+  local c = resolver.palette(themes.get("nord"), state.current.palette_mix, state.current.color_overrides)
+  assert(lt.normal.a.bg == c.blue and lt.normal.c.bg == c.bg2 and lt.insert.a.bg == c.green, vim.inspect(lt.normal))
+
+  -- Apply fires ColorScheme, and ThemeForge's groups win over what plugins derive
+  local fired = 0
+  local id = vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+      fired = fired + 1
+      vim.api.nvim_set_hl(0, "BufferLineSeparator", { fg = "#000000", bg = "#000000" }) -- a plugin's own colours
+    end,
+  })
+  state.config.compat = "all"
+  tf.apply("dracula")
+  vim.api.nvim_del_autocmd(id)
+  assert(fired == 1, "ColorScheme fired " .. fired .. " times")
+  local sep = vim.api.nvim_get_hl(0, { name = "BufferLineSeparator" })
+  local fill = vim.api.nvim_get_hl(0, { name = "BufferLineFill" })
+  assert(sep.fg == fill.bg, "slant separator must use the tabline background")
+
+  -- transparent editor: the selected tab has no background of its own
+  tf.apply({ ui = { transparency = true } })
+  assert(vim.api.nvim_get_hl(0, { name = "BufferLineBufferSelected" }).bg == nil, "selected tab should be transparent")
+  tf.apply({ ui = { transparency = false } })
+  state.config.compat = "auto"
 end)
 
 -- ── doctor / export / event ────────────────────────────────────────────────

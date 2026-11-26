@@ -7,6 +7,8 @@ local default_state = {
   recent_themes = {},
   color_overrides = {},
   overrides = {},
+  -- LSP semantic token customizations: { ["@lsp.type.parameter"] = { fg = "orange", italic = true } }
+  lsp_tokens = {},
   palette_mix = { purple = 0, blue = 0, green = 0, pink = 0, orange = 0, cyan = 0, warm = 0, saturation = 50, brightness = 50, opacity = 100 },
   ui_options = {
     transparency = false,
@@ -30,6 +32,7 @@ local function editable_snapshot()
     active_theme = M.current.active_theme,
     overrides = vim.deepcopy(M.current.overrides),
     color_overrides = vim.deepcopy(M.current.color_overrides),
+    lsp_tokens = vim.deepcopy(M.current.lsp_tokens or {}),
     palette_mix = vim.deepcopy(M.current.palette_mix),
     ui_options = vim.deepcopy(M.current.ui_options),
   }
@@ -39,6 +42,7 @@ local function restore_snapshot(snapshot)
   M.current.active_theme = snapshot.active_theme
   M.current.overrides = vim.deepcopy(snapshot.overrides or {})
   M.current.color_overrides = vim.deepcopy(snapshot.color_overrides or {})
+  M.current.lsp_tokens = vim.deepcopy(snapshot.lsp_tokens or {})
   M.current.palette_mix = vim.deepcopy(snapshot.palette_mix or {})
   M.current.ui_options = vim.deepcopy(snapshot.ui_options or {})
 end
@@ -142,6 +146,13 @@ function M.set_color_override(key, value)
   end
 end
 
+--- Set (or clear with nil) the customization of one LSP semantic token group.
+function M.set_lsp_token(group, spec)
+  M.current.lsp_tokens = M.current.lsp_tokens or {}
+  local clean = require("themeforge.lsp_tokens").clean(spec)
+  M.current.lsp_tokens[group] = clean
+end
+
 function M.set_mix(key, value)
   M.current.palette_mix[key] = value
 end
@@ -153,6 +164,7 @@ end
 function M.reset()
   M.current.overrides = {}
   M.current.color_overrides = {}
+  M.current.lsp_tokens = {}
   M.current.palette_mix = { purple = 0, blue = 0, green = 0, pink = 0, orange = 0, cyan = 0, warm = 0, saturation = 50, brightness = 50, opacity = 100 }
 end
 
@@ -192,6 +204,7 @@ function M.load_cache()
     M.current.recent_themes = data.recent_themes or {}
     M.current.overrides = data.overrides or {}
     M.current.color_overrides = data.color_overrides or {}
+    M.current.lsp_tokens = type(data.lsp_tokens) == "table" and data.lsp_tokens or {}
     M.current.palette_mix = data.palette_mix or vim.deepcopy(default_state.palette_mix)
     M.current.ui_options = vim.tbl_extend("force", M.current.ui_options, data.ui_options or {})
     return true

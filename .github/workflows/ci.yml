@@ -49,6 +49,11 @@ jobs:
             -c 'runtime plugin/themeforge.lua' \
             -c 'luafile tests/upgrade_spec.lua' \
             -c 'qa!'
+          nvim --headless -u NONE \
+            --cmd 'set rtp^=.' \
+            -c 'runtime plugin/themeforge.lua' \
+            -c 'luafile tests/lsp_tokens_spec.lua' \
+            -c 'qa!'
 
       - name: Check Lua syntax
         shell: bash

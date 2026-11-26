@@ -28,10 +28,11 @@
 - [Demo](#demo)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Quick start](#quick-start)
+- [Usage guide](#usage-guide)
 - [Commands](#commands)
 - [Keybindings](#keybindings)
 - [Configuration](#configuration)
+- [LSP semantic tokens](#lsp-semantic-tokens)
 - [API & events](#api--events)
 - [Bundled themes](#bundled-themes)
 - [Plugin integrations](#plugin-integrations)
@@ -52,6 +53,7 @@
 - Blend sliders: Purple, Blue, Green, Cyan, Pink, Orange, Warm, Saturation, Brightness, Opacity
 - Perceptual **OKLCH** color engine: the background is protected from washing out, and text never drops below its original contrast
 - Edit any semantic color (keyword, function, string, …) by typing a hex code
+- **Custom LSP semantic tokens**: give `parameter`, `property`, `method`, `interface`, `enumMember`, `readonly`, `deprecated`, … their own color (palette key or hex) and bold / italic / underline / strikethrough, previewed live
 - UI options: transparency, italic keywords, bold functions, cursorline, diagnostics underline, statusline and signcolumn styles
 - Undo / redo for every change, named blends, and quick profiles (focus, high-contrast, low-distraction, monochrome)
 
@@ -72,7 +74,8 @@ https://github.com/user-attachments/assets/4b297170-ea7b-45ef-8cc7-998fbc2cd829
 
 The video walks through every feature: help, live preview, favorites, search,
 surprise theme, blend sliders with undo, UI toggles, custom hex colors,
-**Apply** → **Save to config**, the doctor, blends, profiles and export.
+**custom LSP semantic tokens**, **Apply** → **Save to config**, the doctor,
+blends, profiles and export.
 
 ### Preview → Apply → Save
 
@@ -136,18 +139,81 @@ Then add to your `init.lua`:
 require("themeforge").setup({ default_theme = "tokyonight-storm" })
 ```
 
-## Quick start
+## Usage guide
+
+### 1. Open the workbench
 
 ```vim
 :ThemeForge
 ```
 
-1. Move through the theme list with `j` / `k` and press `Enter` to preview.
-2. Press `Tab` to reach the controls: tune sliders with `h` / `l`, toggle options with `Enter`.
-3. Press `a` to apply, then `s` to save it to your config.
-4. Press `d` at any time to check readability.
+The panel has three panes. Move between them with `Tab` / `S-Tab`:
 
-Press `?` inside the panel for every shortcut.
+| Pane | What it is for |
+|------|----------------|
+| **Themes** (left) | Favorites, recent themes and the full list, each with a palette swatch |
+| **Preview** (middle) | Code samples (including LSP tokens) drawn with the current settings |
+| **Controls** (right) | Actions, readability, blend sliders, UI options, colors, LSP tokens, plugins |
+
+The bar at the bottom shows the status (`PREVIEW` / `APPLIED` / `SAVED`) and the main keys.
+Press `?` for every shortcut, `q` to close.
+
+### 2. Pick a theme
+
+- `j` / `k` move, `Enter` previews the theme over your whole editor.
+- `/` searches by name or mood tag (`calm`, `warm`, `high-contrast`…), `n` picks a surprise theme.
+- `f` adds the theme under the cursor to **Favorites**.
+
+Nothing is kept until you apply: closing with `q` restores the previous theme.
+
+### 3. Tune it
+
+In the Controls pane (`]]` / `[[` jump between its sections):
+
+- **Blend sliders**: `h` / `l` (±5), `H` / `L` (±10), `0` resets. Tint toward a hue, warm it up,
+  change saturation or brightness. The background is protected and text never loses contrast.
+- **UI options**: `Enter` toggles italic keywords, bold functions, transparency, cursorline…
+- **Color tokens**: `Enter` on a row, type a hex code (`#ff79c6`), or `clear` to reset it.
+- **LSP tokens**: see [LSP semantic tokens](#lsp-semantic-tokens).
+- `u` / `Ctrl-r` undo and redo any change.
+
+### 4. Apply, save, export
+
+| Key | Result |
+|-----|--------|
+| `a` | **Apply**: makes it your active theme, restored on the next start |
+| `s` | **Save to config**: writes a `require("themeforge").apply({...})` block into a config file you choose |
+| `e` | **Export**: writes `colors/<name>.lua`, a standalone scheme for `:colorscheme <name>` |
+| `b` / `p` | Save / load a named blend to reuse later |
+| `P` | Apply a quick profile (focus, high-contrast, low-distraction, monochrome) |
+
+### 5. Check readability
+
+Press `d` (or run `:ThemeForge doctor`). It reports:
+
+- contrast for text, comments, selection and every customized LSP token (WCAG 2, plus APCA as a hint);
+- color-blind safety of diff and diagnostic colors;
+- whether your customized LSP token colors are really what is drawn in your open buffers;
+- broken highlight links.
+
+### Recommended keymaps
+
+```lua
+vim.keymap.set("n", "<leader>Tt", "<cmd>ThemeForge<cr>",        { desc = "ThemeForge: open" })
+vim.keymap.set("n", "<leader>Tk", "<cmd>ThemeForge token<cr>",  { desc = "ThemeForge: style LSP token under cursor" })
+vim.keymap.set("n", "<leader>Td", "<cmd>ThemeForge doctor<cr>", { desc = "ThemeForge: doctor" })
+vim.keymap.set("n", "<leader>Ts", "<cmd>ThemeForge save<cr>",   { desc = "ThemeForge: save to config" })
+```
+
+### Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Colors look wrong or washed out | Your terminal needs true color: `vim.o.termguicolors = true` |
+| My theme is gone after restart | You previewed but did not apply: press `a` (or `s` to save it in your config) |
+| An LSP token color does not change | Run `:ThemeForge doctor`; if it says *OVERRIDDEN*, put the cursor on that word and run `:ThemeForge token` to style the exact group |
+| No LSP TOKENS marked ● | The server sends no semantic tokens (pyright) or they are off (gopls: `semanticTokens = true`) |
+| A plugin keeps old colors | `:ThemeForge compat all`, or check the **PLUGINS** list in the panel |
 
 ## Commands
 
@@ -159,6 +225,7 @@ Press `?` inside the panel for every shortcut.
 | `:ThemeForge save [file]` | Save the configuration to a file |
 | `:ThemeForge copy` | Copy the configuration to the clipboard |
 | `:ThemeForge export [name]` | Write a standalone `colors/<name>.lua` |
+| `:ThemeForge token` | Style the LSP semantic token under the cursor |
 | `:ThemeForge reset` | Reset all overrides |
 | `:ThemeForge list` | List bundled themes |
 | `:ThemeForge status` | Show the active theme |
@@ -183,6 +250,9 @@ Inside the panel:
 | `h` / `l` | Slider −5 / +5 |
 | `H` / `L` | Slider −10 / +10 |
 | `0` | Reset slider |
+| `B` / `I` / `U` / `S` | LSP token: toggle bold / italic / underline / strikethrough |
+| `X` | LSP token: reset to the theme default |
+| `]]` / `[[` | Jump to the next / previous section (e.g. straight to LSP TOKENS) |
 | `a` | Apply theme |
 | `s` | Save to config |
 | `e` | Export colorscheme |
@@ -252,6 +322,98 @@ Ready-to-copy configurations live in [`presets/`](presets/):
 [`focus.lua`](presets/focus.lua), [`high-contrast.lua`](presets/high-contrast.lua)
 and [`monochrome.lua`](presets/monochrome.lua).
 
+## LSP semantic tokens
+
+Language servers tag code with semantic tokens (`@lsp.type.parameter`,
+`@lsp.type.property`, `@lsp.mod.readonly`, …). ThemeForge lets you style them on
+top of any theme.
+
+**In the panel:** press `]]` in the Controls pane until you reach **LSP TOKENS**.
+
+```
+ LSP TOKENS                         5 customized
+ rust_analyzer · gopls   ● in your code
+ ⏎ colour  B I U S style  X reset
+ TYPES
+ ██ ● parameter     shapes       B [I] U S *
+ ██ ● struct        HashMap     [B] I  U S *
+ ██ ● interface     Shape        B  I [U]S *
+ ...
+ MODIFIERS  style only
+ ░░ ● deprecated    old_total    B  I  U[S]*
+```
+
+- The swatch is the token's current color; **●** means the token appears in your open code.
+- The second column is a **real word from your code**, drawn exactly as it will look.
+- `B I U S` badges show which styles are on; `*` and a highlighted name mark a customized token.
+- Tokens used by your servers come first, followed by the server-specific ones
+  (rust-analyzer: `lifetime`, `selfKeyword`, `builtinType`, `mutable`, `trait`…).
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Pick a color: a palette key (follows the theme and blend sliders) or a custom `#hex`; the current one is marked ● |
+| `B` / `I` / `U` / `S` | Toggle bold / italic / underline / strikethrough |
+| `X` | Reset the token to the theme default |
+
+The preview pane has an LSP sample that uses the real token groups, so every change shows immediately.
+Customizations are part of undo/redo, **Apply**, **Save to config**, **Export** and blends.
+
+**Check that the colors are applied:** `:ThemeForge doctor` has a section
+*LSP tokens in your open buffers*. For every customized token it counts the places in your
+code drawn with your color, e.g. `type.parameter 34/34 OK`. When a more specific group wins
+somewhere it says `OVERRIDDEN by @lsp.typemod… (e.g. "max")`; style that word with
+`:ThemeForge token`. Only lines that have been on screen are counted.
+
+**From your code:** put the cursor on any word and run `:ThemeForge token`.
+It lists the semantic tokens under the cursor, most specific first
+(`@lsp.typemod.parameter.declaration`, `@lsp.mod.declaration`,
+`@lsp.type.parameter`), and opens a menu to set the color, toggle styles or
+reset. Changes apply immediately; run `:ThemeForge save` to keep them.
+
+```lua
+vim.keymap.set("n", "<leader>Tk", "<cmd>ThemeForge token<cr>", { desc = "ThemeForge: style token under cursor" })
+```
+
+**In code:**
+
+```lua
+require("themeforge").apply({
+  lsp_tokens = {
+    ["@lsp.type.parameter"]  = { fg = "orange", italic = true },  -- palette key
+    ["@lsp.type.interface"]  = { fg = "#7dcfff", bold = true },   -- hex
+    ["@lsp.type.property"]   = { underline = true },              -- style only
+    ["@lsp.mod.deprecated"]  = { strikethrough = true },
+    ["@lsp.mod.readonly"]    = { italic = true },
+  },
+})
+```
+
+- `fg`: a palette key (`purple`, `blue`, `cyan`, `green`, `yellow`, `orange`, `red`, `fg`, `fg2`, `comment`) or `#rrggbb`
+- `bold`, `italic`, `underline`, `strikethrough`: booleans
+- Names can be written as `"@lsp.type.parameter"`, `"lsp.type.parameter"` or `"type.parameter"`
+- Token types without `fg` keep a sensible default color; modifiers without `fg` only add the style
+- Customizations are kept when you switch themes; palette keys re-resolve to the new theme's colors
+
+Panel tokens: `class`, `interface`, `struct`, `enum`, `enumMember`, `type`, `typeParameter`,
+`namespace`, `parameter`, `variable`, `property`, `function`, `method`, `macro`, `decorator`,
+and the modifiers `readonly`, `static`, `async`, `deprecated`, `defaultLibrary`, plus whatever
+your running servers use. Any other `@lsp.*` group (including `@lsp.typemod.*` and
+language-specific ones like `@lsp.type.parameter.rust`) can be set through `lsp_tokens` in code.
+
+**Good to know**
+
+- Each server sends its own tokens. Tested with rust-analyzer, gopls, vtsls, clangd and
+  lua-language-server: every customized token was drawn with its color (195/195 positions). pyright sends no semantic tokens (basedpyright does), and gopls needs
+  `settings = { gopls = { semanticTokens = true } }`.
+- More specific groups win: `@lsp.typemod.function.defaultLibrary` (priority 127) beats
+  `@lsp.mod.*` (126), which beats `@lsp.type.function` (125). Neovim links some `typemod`
+  groups by default (for example built-in functions to `@function.builtin`), so styling
+  `function` does not change `Math.max`. Use `:ThemeForge token` on that word to style the exact group.
+- A token with only a style (say, just italic) keeps the color it already had in the current theme.
+- Servers name some concepts differently: gopls sends interfaces and structs as `type` +
+  modifier (`@lsp.typemod.type.interface`). Styling `interface` / `struct` also styles those
+  equivalents unless you customize them yourself.
+
 ## API & events
 
 ```lua
@@ -264,6 +426,7 @@ tf.apply("tokyonight-night")
 tf.apply({ theme = "github-dark", ui = { bold_cursor = true } })
 tf.apply({ theme = "github-dark", colors = { purple = "#cba6f7" } })
 tf.apply({ theme = "nord", mix = { warm = 20, brightness = 60 } })
+tf.apply({ lsp_tokens = { ["@lsp.type.parameter"] = { fg = "orange", italic = true } } })
 
 tf.apply_profile("high-contrast")
 tf.save("~/.config/nvim/lua/theme.lua")
@@ -327,9 +490,13 @@ nvim --headless -u NONE --cmd 'set rtp^=.' \
 nvim --headless -u NONE --cmd 'set rtp^=.' \
   -c 'runtime plugin/themeforge.lua' \
   -c 'luafile tests/upgrade_spec.lua' -c 'qa!'
+
+nvim --headless -u NONE --cmd 'set rtp^=.' \
+  -c 'runtime plugin/themeforge.lua' \
+  -c 'luafile tests/lsp_tokens_spec.lua' -c 'qa!'
 ```
 
-CI runs both suites plus a Lua syntax check on every push and pull request.
+CI runs all three suites plus a Lua syntax check on every push and pull request.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow.
 
 ## Support

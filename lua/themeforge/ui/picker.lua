@@ -14,7 +14,10 @@ function M.open(items, opts, on_choice)
   local rows = {}
   for _, it in ipairs(items) do
     if type(it) == "table" then
-      table.insert(rows, { label = it.label, detail = it.detail, value = it.value == nil and it.label or it.value })
+      table.insert(rows, {
+        label = it.label, detail = it.detail, value = it.value == nil and it.label or it.value,
+        color = it.color, selected = it.selected,
+      })
     else
       table.insert(rows, { label = tostring(it), value = it })
     end
@@ -22,14 +25,18 @@ function M.open(items, opts, on_choice)
 
   local width = vim.fn.strdisplaywidth(opts.title or "") + 6
   for _, r in ipairs(rows) do
-    width = math.max(width, vim.fn.strdisplaywidth(r.label) + (r.detail and vim.fn.strdisplaywidth(r.detail) + 4 or 0) + 6)
+    width = math.max(width, vim.fn.strdisplaywidth(r.label) + (r.detail and vim.fn.strdisplaywidth(r.detail) + 4 or 0) + (r.color and 9 or 6))
   end
   width = math.min(width, vim.o.columns - 4)
   local height = math.min(#rows, vim.o.lines - 6)
 
+  local has_swatch = false
+  for _, r in ipairs(rows) do has_swatch = has_swatch or r.color ~= nil end
   local lines = {}
   for _, r in ipairs(rows) do
-    table.insert(lines, "  " .. r.label)
+    -- Items with a colour get a swatch; the others are indented to line up.
+    local prefix = has_swatch and (r.color and "██ " or "   ") or ""
+    table.insert(lines, "  " .. prefix .. r.label)
   end
   local buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -37,6 +44,14 @@ function M.open(items, opts, on_choice)
   vim.bo[buf].bufhidden = "wipe"
   local ns = vim.api.nvim_create_namespace("themeforge_picker")
   for i, r in ipairs(rows) do
+    if r.color and r.color:match("^#%x%x%x%x%x%x$") then
+      local group = "ThemeForgeSwatch_" .. r.color:sub(2)
+      pcall(vim.api.nvim_set_hl, 0, group, { fg = r.color })
+      vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 2, { end_col = 2 + 6, hl_group = group })
+    end
+    if r.selected then
+      vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, { virt_text = { { "●", "ThemeForgeOk" } }, virt_text_pos = "overlay" })
+    end
     if r.detail then
       vim.api.nvim_buf_set_extmark(buf, ns, i - 1, 0, {
         virt_text = { { r.detail .. " ", "ThemeForgeMuted" } },
@@ -63,6 +78,9 @@ function M.open(items, opts, on_choice)
   end
   local win = vim.api.nvim_open_win(buf, true, config)
   vim.wo[win].cursorline = true
+  for i, r in ipairs(rows) do
+    if r.selected then pcall(vim.api.nvim_win_set_cursor, win, { i, 0 }) break end
+  end
   vim.wo[win].winhighlight = "Normal:ThemeForgePanelNormal,FloatBorder:ThemeForgePanelBorder,FloatTitle:ThemeForgeTitle,FloatFooter:ThemeForgeMuted,CursorLine:ThemeForgePanelCursorLine"
 
   local done = false

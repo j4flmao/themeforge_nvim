@@ -5,6 +5,34 @@ local resolver = require("themeforge.resolver")
 local themes = require("themeforge.themes")
 local compat = require("themeforge.compat")
 local managed_groups = {}
+-- Definition each group had before ThemeForge first touched it (false = none).
+-- Restored instead of clearing, so Neovim's default links (e.g.
+-- @lsp.type.parameter -> @variable.parameter) survive a reset.
+local originals = {}
+
+local function remember(group)
+  if originals[group] == nil then
+    local ok, def = pcall(vim.api.nvim_get_hl, 0, { name = group, create = false })
+    originals[group] = (ok and def and next(def)) and def or false
+  end
+end
+
+--- Definition a group had before ThemeForge touched it (or its current one if
+--- ThemeForge never managed it). Used to keep style-only LSP edits on the real colour.
+function M.original(group)
+  if originals[group] ~= nil then
+    return originals[group] or nil
+  end
+  local ok, def = pcall(vim.api.nvim_get_hl, 0, { name = group, create = false })
+  return (ok and def and next(def)) and def or nil
+end
+
+local function set_managed(group, hl)
+  remember(group)
+  local ok = pcall(vim.api.nvim_set_hl, 0, group, hl)
+  if ok then managed_groups[group] = true end
+  return ok
+end
 
 -- 16 ANSI colours for :terminal buffers, taken from the resolved palette.
 local function set_terminal_colors(c)
@@ -19,11 +47,37 @@ end
 
 -- Let statuslines and user config react to a theme change. Lualine caches
 -- its colours, so it gets an explicit refresh when it is loaded.
+-- lualine builds its section colours (and per-component groups) when it is set
+-- up; re-run its setup so it reloads lua/lualine/themes/themeforge.lua.
+-- Debounced: preview can fire on every slider step.
+local lualine_timer
+local function reload_lualine()
+  if not package.loaded["lualine"] then return end
+  lualine_timer = lualine_timer or vim.uv.new_timer()
+  lualine_timer:stop()
+  lualine_timer:start(80, 0, vim.schedule_wrap(function()
+    pcall(function() require("lualine").setup() end)
+  end))
+end
+
+local firing_colorscheme = false
+--- Fire ColorScheme like a real colorscheme, so plugins (bufferline, lualine,
+--- devicons…) rebuild their highlights, then put ThemeForge's own groups back
+--- on top of whatever they derived.
+local function fire_colorscheme(colors)
+  if firing_colorscheme then return end
+  firing_colorscheme = true
+  pcall(vim.api.nvim_exec_autocmds, "ColorScheme", { pattern = "themeforge", modeline = false })
+  firing_colorscheme = false
+  for group, _ in pairs(compat.apply(colors, state.config.compat or "auto")) do
+    managed_groups[group] = true
+  end
+end
+
 local function notify_applied(theme_id, colors, preview)
   set_terminal_colors(colors)
-  if package.loaded["lualine"] then
-    pcall(function() require("lualine").refresh({ force = true }) end)
-  end
+  if not preview then fire_colorscheme(colors) end
+  reload_lualine()
   pcall(vim.api.nvim_exec_autocmds, "User", {
     pattern = "ThemeForgeApplied",
     modeline = false,
@@ -33,7 +87,7 @@ end
 
 local function clear_managed_groups()
   for group, _ in pairs(managed_groups) do
-    pcall(vim.api.nvim_set_hl, 0, group, {})
+    pcall(vim.api.nvim_set_hl, 0, group, originals[group] or {})
   end
   managed_groups = {}
 end
@@ -69,7 +123,7 @@ function M.apply(opts)
     return false
   end
 
-  local highlights, colors = resolver.resolve(theme, overrides, ui_options, mix, state.current.color_overrides)
+  local highlights, colors = resolver.resolve(theme, overrides, ui_options, mix, state.current.color_overrides, state.current.lsp_tokens)
 
   -- Clear only highlights owned by ThemeForge. A global highlight clear also
   -- destroys unrelated user and plugin customization.
@@ -77,12 +131,7 @@ function M.apply(opts)
 
   -- Apply all highlight groups
   for group, hl in pairs(highlights) do
-    local ok, err = pcall(vim.api.nvim_set_hl, 0, group, hl)
-    if not ok then
-      -- silently skip invalid groups
-    else
-      managed_groups[group] = true
-    end
+    set_managed(group, hl) -- invalid groups are skipped silently
   end
 
   -- Apply compat modules
@@ -125,12 +174,11 @@ function M.preview(theme_id, overrides, ui_options, mix)
   local theme = themes.get(theme_id)
   if not theme then return false end
 
-  local highlights, colors = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {}, state.current.color_overrides)
+  local highlights, colors = resolver.resolve(theme, overrides or {}, ui_options or state.current.ui_options, mix or {}, state.current.color_overrides, state.current.lsp_tokens)
 
   clear_managed_groups()
   for group, hl in pairs(highlights) do
-    pcall(vim.api.nvim_set_hl, 0, group, hl)
-    managed_groups[group] = true
+    set_managed(group, hl)
   end
 
   for group, _ in pairs(compat.apply(colors, state.config.compat or "auto")) do

@@ -79,6 +79,23 @@ function M.generate_block()
     table.insert(lines, "  },")
   end
 
+  -- LSP semantic tokens
+  if next(s.lsp_tokens or {}) then
+    local names = vim.tbl_keys(s.lsp_tokens)
+    table.sort(names)
+    table.insert(lines, "  lsp_tokens = {")
+    for _, group in ipairs(names) do
+      local spec = s.lsp_tokens[group]
+      local parts = {}
+      if spec.fg then table.insert(parts, string.format("fg = %q", spec.fg)) end
+      for _, style in ipairs({ "bold", "italic", "underline", "strikethrough" }) do
+        if spec[style] ~= nil then table.insert(parts, string.format("%s = %s", style, tostring(spec[style]))) end
+      end
+      table.insert(lines, string.format("    [%q] = { %s },", group, table.concat(parts, ", ")))
+    end
+    table.insert(lines, "  },")
+  end
+
   -- Blend sliders (palette_mix)
   if s.palette_mix then
     table.insert(lines, "  mix = {")
@@ -115,7 +132,9 @@ function M.generate_ref_block(theme_file_path)
   local lines = {}
   table.insert(lines, REF_START)
   table.insert(lines, "-- ThemeForge config loaded from external file. Do not edit this block manually.")
-  table.insert(lines, string.format('dofile("%s")', theme_file_path:gsub("\\", "/")))
+  -- Guarded so a moved or deleted theme file never breaks startup.
+  local path = theme_file_path:gsub("\\", "/")
+  table.insert(lines, string.format('if vim.fn.filereadable(%q) == 1 then dofile(%q) end', path, path))
   table.insert(lines, REF_END)
   return lines
 end
@@ -257,18 +276,30 @@ function M.write(filepath)
     if line:find(END_MARKER, 1, true) then block_end = i end
   end
 
-  -- If writing to a file that is NOT init.lua, inject a dofile() reference in init.lua
-  local init_path = vim.fn.stdpath("config") .. "/init.lua"
-  local norm = function(p) return vim.fn.fnamemodify(p, ":p"):gsub("\\", "/"):gsub("/+$", "") end
-  if norm(filepath) ~= norm(init_path) then
+  -- A file inside the config dir (but not init.lua itself) gets a guarded
+  -- dofile() reference in init.lua so it is loaded on startup. Files saved
+  -- anywhere else are left alone: init.lua is never pointed outside the
+  -- config dir (e.g. at a temp file that may disappear).
+  local config_dir = vim.fn.stdpath("config")
+  local init_path = config_dir .. "/init.lua"
+  -- Short path keeps the message on one line (a wrapped message blocks with "Press ENTER").
+  local short = vim.fn.fnamemodify(filepath, ":~")
+  local norm = function(p) return (vim.fn.fnamemodify(p, ":p"):gsub("\\", "/"):gsub("/+$", "")):lower() end
+  local inside_config = norm(filepath):sub(1, #norm(config_dir) + 1) == norm(config_dir) .. "/"
+  if norm(filepath) ~= norm(init_path) and inside_config then
     M.write_ref(filepath)
     vim.notify(
-      string.format("[ThemeForge] Saved to %s (line %d–%d) + ref in init.lua", filepath, block_start or 0, block_end or 0),
+      string.format("[ThemeForge] Saved to %s (lines %d–%d), loaded from init.lua", short, block_start or 0, block_end or 0),
+      vim.log.levels.INFO
+    )
+  elseif norm(filepath) ~= norm(init_path) then
+    vim.notify(
+      string.format("[ThemeForge] Saved to %s (outside config dir: dofile() it to load)", short),
       vim.log.levels.INFO
     )
   else
     vim.notify(
-      string.format("[ThemeForge] Saved to %s (line %d–%d)", filepath, block_start or 0, block_end or 0),
+      string.format("[ThemeForge] Saved to %s (lines %d–%d)", short, block_start or 0, block_end or 0),
       vim.log.levels.INFO
     )
   end

@@ -95,6 +95,13 @@ function M.apply(opts)
         state.set_ui_option(k, v)
       end
     end
+    if opts.lsp_tokens then
+      local lsp = require("themeforge.lsp_tokens")
+      for name, spec in pairs(opts.lsp_tokens) do
+        local group = lsp.normalize_group(name)
+        if group then state.set_lsp_token(group, spec) end
+      end
+    end
     local ok = apply.apply(opts)
     if ok then state.record_recent(state.current.active_theme) end
     return ok
@@ -131,7 +138,8 @@ function M.export(name, dir)
     return false
   end
   local highlights, colors = require("themeforge.resolver").resolve(
-    theme, state.current.overrides, state.current.ui_options, state.current.palette_mix, state.current.color_overrides)
+    theme, state.current.overrides, state.current.ui_options, state.current.palette_mix, state.current.color_overrides,
+    state.current.lsp_tokens)
   for group, hl in pairs(require("themeforge.compat").collect(colors, state.config.compat or "auto")) do
     if highlights[group] == nil then highlights[group] = hl end
   end
@@ -215,6 +223,7 @@ function M.save_blend(name)
     base_theme = state.current.active_theme,
     overrides = vim.deepcopy(state.current.overrides),
     colors = vim.deepcopy(state.current.color_overrides),
+    lsp_tokens = vim.deepcopy(state.current.lsp_tokens or {}),
     palette_mix = vim.deepcopy(state.current.palette_mix),
     ui_options = vim.deepcopy(state.current.ui_options),
   }
@@ -249,6 +258,7 @@ function M.load_blend(name)
   state.set_theme(blend.base_theme)
   state.current.overrides = blend.overrides or {}
   state.current.color_overrides = blend.colors or {}
+  state.current.lsp_tokens = type(blend.lsp_tokens) == "table" and blend.lsp_tokens or {}
   state.current.palette_mix = blend.palette_mix or state.current.palette_mix
   state.current.ui_options = vim.tbl_extend("force", state.current.ui_options, blend.ui_options or {})
   local applied = require("themeforge.apply").apply()
