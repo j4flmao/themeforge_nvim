@@ -70,7 +70,11 @@
 
 ## Demo
 
-https://github.com/user-attachments/assets/4b297170-ea7b-45ef-8cc7-998fbc2cd829
+
+
+https://github.com/user-attachments/assets/e14748e9-213f-4f9e-8297-e66412f68102
+
+
 
 The video walks through every feature: help, live preview, favorites, search,
 surprise theme, blend sliders with undo, UI toggles, custom hex colors,
